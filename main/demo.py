@@ -18,7 +18,7 @@ tf.app.flags.DEFINE_string('output_path', 'data/res/', '')
 tf.app.flags.DEFINE_string('gpu', '0', '')
 tf.app.flags.DEFINE_string('checkpoint_path', 'checkpoints_mlt/', '')
 FLAGS = tf.app.flags.FLAGS
-
+from pprint import pprint
 
 def get_images():
     files = []

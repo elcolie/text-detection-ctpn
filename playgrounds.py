@@ -12,6 +12,7 @@ if __name__ == '__main__':
             cv2.circle(img, j, 10, (0, 0, 255), -1)
 
     cv2.imshow('demo', img)
+    cv2.imwrite('test.png', img)
 
     cv2.waitKey(0)
     cv2.destroyWindow('YRB_calib')

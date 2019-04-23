@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
+from my_utils import draw_squares
+
 sys.path.append(os.getcwd())
 from nets import model_train as model
 from utils.rpn_msr.proposal_layer import proposal_layer
@@ -20,30 +22,22 @@ tf.app.flags.DEFINE_string('checkpoint_path', 'checkpoints_mlt/', '')
 FLAGS = tf.app.flags.FLAGS
 from pprint import pprint
 
-def transform_boxes(boxes: np.ndarray, h, w, rh, rw):
+
+def transform_boxes(boxes: np.ndarray, im):
     """
     Transform back the original coordinate
     :param boxes:
-    :param h: height of the original
-    :param w: width of the original
-    :param rh: re-sized height
-    :param rw: re-sized height
+    :param im: The original image
     :return:
     """
-    h_factor = int(float(h / rh))
-    w_factor = int(float(w / rw))
     z = np.copy(boxes)
-    z[:, 0] = z[:, 0] * h_factor
-    z[:, 2] = z[:, 2] * h_factor
-    z[:, 4] = z[:, 4] * h_factor
-    z[:, 6] = z[:, 6] * h_factor
-
-    z[:, 1] = z[:, 1] * w_factor
-    z[:, 3] = z[:, 3] * w_factor
-    z[:, 5] = z[:, 5] * w_factor
-    z[:, 7] = z[:, 7] * w_factor
+    (height, width, colors) = im.shape
+    new_h, new_w, img_size = get_new_wh(im)
+    z[:, 0::2] = height * z[:, 0::2] / new_h
+    z[:, 1::2] = width * z[:, 1::2] / new_w
 
     return z
+
 
 def get_images():
     files = []
@@ -58,7 +52,12 @@ def get_images():
     return files
 
 
-def resize_image(img):
+def get_new_wh(img):
+    """
+    Get only new width and new height
+    :param img:
+    :return:
+    """
     img_size = img.shape
     im_size_min = np.min(img_size[0:2])
     im_size_max = np.max(img_size[0:2])
@@ -72,6 +71,11 @@ def resize_image(img):
     new_h = new_h if new_h // 16 == 0 else (new_h // 16 + 1) * 16
     new_w = new_w if new_w // 16 == 0 else (new_w // 16 + 1) * 16
 
+    return new_h, new_w, img_size
+
+
+def resize_image(img):
+    new_h, new_w, img_size = get_new_wh(img)
     re_im = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
     return re_im, (new_h / img_size[0], new_w / img_size[1])
 
@@ -125,24 +129,14 @@ def main(argv=None):
                 boxes = textdetector.detect(textsegs, scores[:, np.newaxis], img.shape[:2])
                 boxes = np.array(boxes, dtype=np.int)
 
-                new_boxes = transform_boxes(boxes, h, w, rh, rw)
+                new_boxes = transform_boxes(boxes, im)
 
                 cost_time = (time.time() - start)
                 print("cost time: {:.2f}s".format(cost_time))
 
-                for i, box in enumerate(boxes):
-                    cv2.polylines(img, [box[:8].astype(np.int32).reshape((-1, 1, 2))], True, color=(0, 255, 0),
-                                  thickness=2)
-                img = cv2.resize(img, None, None, fx=1.0 / rh, fy=1.0 / rw, interpolation=cv2.INTER_LINEAR)
-                cv2.imwrite(os.path.join(FLAGS.output_path, os.path.basename(im_fn)), img[:, :, ::-1])
-
-                with open(os.path.join(FLAGS.output_path, os.path.splitext(os.path.basename(im_fn))[0]) + ".txt",
-                          "w") as f:
-                    for i, box in enumerate(boxes):
-                        line = ",".join(str(box[k]) for k in range(8))
-                        line += "," + str(scores[i]) + "\r\n"
-                        f.writelines(line)
-
+                # The original output from re-sized picture
+                # draw_squares(new_boxes, im, rh, rw, im_fn, scores, resize=False)
+                draw_squares(new_boxes, im, im.shape[0], im.shape[1], im_fn, scores, resize=False)
 
 if __name__ == '__main__':
     tf.app.run()

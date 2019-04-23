@@ -20,6 +20,31 @@ tf.app.flags.DEFINE_string('checkpoint_path', 'checkpoints_mlt/', '')
 FLAGS = tf.app.flags.FLAGS
 from pprint import pprint
 
+def transform_boxes(boxes: np.ndarray, h, w, rh, rw):
+    """
+    Transform back the original coordinate
+    :param boxes:
+    :param h: height of the original
+    :param w: width of the original
+    :param rh: re-sized height
+    :param rw: re-sized height
+    :return:
+    """
+    h_factor = int(float(h / rh))
+    w_factor = int(float(w / rw))
+    z = np.copy(boxes)
+    z[:, 0] = z[:, 0] * h_factor
+    z[:, 2] = z[:, 2] * h_factor
+    z[:, 4] = z[:, 4] * h_factor
+    z[:, 6] = z[:, 6] * h_factor
+
+    z[:, 1] = z[:, 1] * w_factor
+    z[:, 3] = z[:, 3] * w_factor
+    z[:, 5] = z[:, 5] * w_factor
+    z[:, 7] = z[:, 7] * w_factor
+
+    return z
+
 def get_images():
     files = []
     exts = ['jpg', 'png', 'jpeg', 'JPG']
@@ -99,6 +124,8 @@ def main(argv=None):
                 textdetector = TextDetector(DETECT_MODE='H')
                 boxes = textdetector.detect(textsegs, scores[:, np.newaxis], img.shape[:2])
                 boxes = np.array(boxes, dtype=np.int)
+
+                new_boxes = transform_boxes(boxes, h, w, rh, rw)
 
                 cost_time = (time.time() - start)
                 print("cost time: {:.2f}s".format(cost_time))

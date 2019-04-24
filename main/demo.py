@@ -7,7 +7,7 @@ import time
 import cv2
 import numpy as np
 import tensorflow as tf
-from my_utils import draw_squares
+from my_utils import draw_squares, write_text
 
 sys.path.append(os.getcwd())
 from nets import model_train as model
@@ -139,12 +139,14 @@ def main(argv=None):
                 boxes = textdetector.detect(textsegs, scores[:, np.newaxis], img.shape[:2])
                 coords = np.array(boxes, copy=True)
 
-                new_boxes = transform_boxes(coords, im)
-                new_pixel_boxes = np.array(new_boxes, dtype=np.int)
-                draw_squares(new_pixel_boxes, im, im.shape[0], im.shape[1], im_fn, scores, resize=False)
+                original_boxes = transform_boxes(coords, im)
+                original_pixel_boxes = np.array(original_boxes, dtype=np.int)
 
-                # boxes = np.array(boxes, dtype=np.int)
-                # draw_squares(boxes, img, im.shape[0], im.shape[1], im_fn, scores, resize=True)
+                write_text(original_pixel_boxes, scores, im_fn)
+
+                # Original result
+                # pixel_boxes = np.array(boxes, dtype=np.int)
+                # draw_squares(pixel_boxes, img, rh, rw, im_fn, scores)
 
                 cost_time = (time.time() - start)
                 print("cost time: {:.2f}s".format(cost_time))

@@ -7,7 +7,6 @@ import time
 import cv2
 import numpy as np
 import tensorflow as tf
-
 from my_utils import draw_squares
 
 sys.path.append(os.getcwd())
@@ -20,7 +19,6 @@ tf.app.flags.DEFINE_string('output_path', 'data/res/', '')
 tf.app.flags.DEFINE_string('gpu', '0', '')
 tf.app.flags.DEFINE_string('checkpoint_path', 'checkpoints_mlt/', '')
 FLAGS = tf.app.flags.FLAGS
-from pprint import pprint
 
 
 def transform_boxes(boxes: np.ndarray, im):
@@ -32,7 +30,7 @@ def transform_boxes(boxes: np.ndarray, im):
     """
     z = np.copy(boxes)
     (height, width, colors) = im.shape
-    new_h, new_w, img_size = get_new_wh(im)
+    new_h, new_w, img_size = get_float_new_wh(im)
     z[:, 0::2] = height * z[:, 0::2] / new_h
     z[:, 1::2] = width * z[:, 1::2] / new_w
 
@@ -52,7 +50,7 @@ def get_images():
     return files
 
 
-def get_new_wh(img):
+def get_float_new_wh(img):
     """
     Get only new width and new height
     :param img:
@@ -65,12 +63,24 @@ def get_new_wh(img):
     im_scale = float(600) / float(im_size_min)
     if np.round(im_scale * im_size_max) > 1200:
         im_scale = float(1200) / float(im_size_max)
-    new_h = int(img_size[0] * im_scale)
-    new_w = int(img_size[1] * im_scale)
+    new_h = img_size[0] * im_scale
+    new_w = img_size[1] * im_scale
+
+    return new_h, new_w, img_size
+
+
+def get_new_wh(img):
+    """
+    Get only new width and new height
+    :param img:
+    :return:
+    """
+    new_h, new_w, img_size = get_float_new_wh(img)
+    new_h = int(new_h)
+    new_w = int(new_w)
 
     new_h = new_h if new_h // 16 == 0 else (new_h // 16 + 1) * 16
     new_w = new_w if new_w // 16 == 0 else (new_w // 16 + 1) * 16
-
     return new_h, new_w, img_size
 
 
@@ -125,18 +135,20 @@ def main(argv=None):
                 scores = textsegs[:, 0]
                 textsegs = textsegs[:, 1:5]
 
-                textdetector = TextDetector(DETECT_MODE='H')
+                textdetector = TextDetector(DETECT_MODE='O')
                 boxes = textdetector.detect(textsegs, scores[:, np.newaxis], img.shape[:2])
-                boxes = np.array(boxes, dtype=np.int)
+                coords = np.array(boxes, copy=True)
 
-                new_boxes = transform_boxes(boxes, im)
+                new_boxes = transform_boxes(coords, im)
+                new_pixel_boxes = np.array(new_boxes, dtype=np.int)
+                draw_squares(new_pixel_boxes, im, im.shape[0], im.shape[1], im_fn, scores, resize=False)
+
+                # boxes = np.array(boxes, dtype=np.int)
+                # draw_squares(boxes, img, im.shape[0], im.shape[1], im_fn, scores, resize=True)
 
                 cost_time = (time.time() - start)
                 print("cost time: {:.2f}s".format(cost_time))
 
-                # The original output from re-sized picture
-                # draw_squares(new_boxes, im, rh, rw, im_fn, scores, resize=False)
-                draw_squares(new_boxes, im, im.shape[0], im.shape[1], im_fn, scores, resize=False)
 
 if __name__ == '__main__':
     tf.app.run()
